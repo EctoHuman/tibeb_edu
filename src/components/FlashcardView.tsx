@@ -1,10 +1,15 @@
 import { ArrowLeft, Check, HelpCircle, X } from 'lucide-react';
 import { motion } from 'motion/react';
-import { useState } from 'react';
-import { Flashcard, ViewState } from '../types';
+import { useState, useEffect } from 'react';
+import { Flashcard, ViewState, UserProfile } from '../types';
+import { User } from '../types';
+import { calculateSM2, getNextReviewDate, Quality } from '../utils/sm2';
+import { recordStudySession } from '../utils/studyProgress';
 
 interface FlashcardViewProps {
   onNavigate: (view: ViewState) => void;
+  user?: User;
+  userProfile?: UserProfile | null;
 }
 
 const mockCards: Flashcard[] = [
@@ -12,37 +17,97 @@ const mockCards: Flashcard[] = [
     id: '1',
     wax: 'What is the powerhouse of the cell?',
     gold: 'Mitochondria generate most of the chemical energy needed to power the cell\'s biochemical reactions. This energy is stored in ATP.',
+    interval: 0,
+    repetition: 0,
+    efactor: 2.5,
+    authorId: 'mock',
   },
   {
     id: '2',
     wax: 'When was the Battle of Adwa?',
     gold: 'March 1, 1896. It was a climactic battle of the First Italo-Ethiopian War, securing Ethiopian sovereignty and becoming a symbol of Pan-Africanism.',
+    interval: 0,
+    repetition: 0,
+    efactor: 2.5,
+    authorId: 'mock',
   },
   {
     id: '3',
     wax: 'What is an inverse function?',
     gold: 'A function that "undoes" another function. If f(x) = y, then the inverse function f⁻¹(y) = x. The graph is reflected across the line y = x.',
+    interval: 0,
+    repetition: 0,
+    efactor: 2.5,
+    authorId: 'mock',
   },
 ];
 
-export default function FlashcardView({ onNavigate }: FlashcardViewProps) {
+export default function FlashcardView({ onNavigate, user, userProfile }: FlashcardViewProps) {
+  const [cards, setCards] = useState<Flashcard[]>(mockCards);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [mode, setMode] = useState<'wax' | 'gold'>('wax');
+  const [sessionStats, setSessionStats] = useState({ reviewed: 0, xpGained: 0 });
 
-  const currentCard = mockCards[currentIndex];
+  const currentCard = cards[currentIndex];
 
-  const handleNext = () => {
+  const handleReview = async (quality: Quality) => {
+    if (!currentCard) return;
+
+    // Calculate new SM-2 values
+    const newSM2 = calculateSM2(quality, {
+      interval: currentCard.interval || 0,
+      repetition: currentCard.repetition || 0,
+      efactor: currentCard.efactor || 2.5,
+    });
+
+    const nextReviewDate = getNextReviewDate(newSM2.interval);
+
+    // Update local card state (in a real app, this would update Firestore)
+    const updatedCards = [...cards];
+    updatedCards[currentIndex] = {
+      ...currentCard,
+      ...newSM2,
+      nextReviewDate,
+      lastReviewed: new Date().toISOString(),
+    };
+    setCards(updatedCards);
+
+    // Calculate XP based on quality
+    const xpGained = quality >= 3 ? 10 : 5;
+    
+    setSessionStats(prev => ({
+      reviewed: prev.reviewed + 1,
+      xpGained: prev.xpGained + xpGained
+    }));
+
+    // Record progress in Firebase
+    if (user) {
+      await recordStudySession(user.uid, xpGained, quality);
+    }
+
+    // Move to next card
     setIsFlipped(false);
     setMode('wax');
     setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % mockCards.length);
+      setCurrentIndex((prev) => (prev + 1) % cards.length);
     }, 150);
   };
 
-  const toggleMode = () => {
-    setMode(mode === 'wax' ? 'gold' : 'wax');
-  };
+  if (!currentCard) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-6 bg-tibeb-pattern">
+        <h2 className="text-2xl font-bold text-coffee mb-4">All caught up!</h2>
+        <p className="text-coffee/70 mb-8">You've reviewed all your cards for now.</p>
+        <button 
+          onClick={() => onNavigate('dashboard')}
+          className="px-6 py-3 bg-coffee text-parchment rounded-2xl font-bold hover:bg-coffee/90 transition-colors shadow-md"
+        >
+          Return to Dashboard
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col p-6 md:p-10 bg-tibeb-pattern h-full overflow-hidden">
@@ -53,8 +118,13 @@ export default function FlashcardView({ onNavigate }: FlashcardViewProps) {
         >
           <ArrowLeft size={20} /> Back to Dashboard
         </button>
-        <div className="text-coffee font-bold">
-          Card {currentIndex + 1} of {mockCards.length}
+        <div className="flex items-center gap-4">
+          <div className="text-sm font-bold text-gold bg-earth/30 px-3 py-1 rounded-full">
+            +{sessionStats.xpGained} XP
+          </div>
+          <div className="text-coffee font-bold">
+            Card {currentIndex + 1} of {cards.length}
+          </div>
         </div>
       </header>
 
@@ -118,21 +188,21 @@ export default function FlashcardView({ onNavigate }: FlashcardViewProps) {
         {/* Action Buttons */}
         <div className="flex gap-4 w-full max-w-md">
           <button 
-            onClick={handleNext}
+            onClick={() => handleReview(1)}
             className="flex-1 py-4 bg-red-100 text-red-700 rounded-2xl font-bold flex flex-col items-center gap-1 hover:bg-red-200 transition-colors shadow-sm"
           >
             <X size={24} />
             <span>Forgot</span>
           </button>
           <button 
-            onClick={handleNext}
+            onClick={() => handleReview(3)}
             className="flex-1 py-4 bg-yellow-100 text-yellow-700 rounded-2xl font-bold flex flex-col items-center gap-1 hover:bg-yellow-200 transition-colors shadow-sm"
           >
             <HelpCircle size={24} />
             <span>Doubtful</span>
           </button>
           <button 
-            onClick={handleNext}
+            onClick={() => handleReview(5)}
             className="flex-1 py-4 bg-highland/20 text-highland rounded-2xl font-bold flex flex-col items-center gap-1 hover:bg-highland/30 transition-colors shadow-sm"
           >
             <Check size={24} />

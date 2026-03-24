@@ -1,0 +1,191 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: users
+// Document ID: {userId}
+// Fields:
+//   - uid: string (required)
+//   - displayName: string (optional)
+//   - photoURL: string (optional)
+//   - email: string (required)
+//   - masteryLevel: number (optional)
+//   - leaves: number (optional)
+//   - xp: number (optional)
+//   - level: number (optional)
+//   - streak: number (optional)
+//   - lastStudyDate: string (optional)
+//   - createdAt: string (required)
+//
+// Collection: users/{userId}/decks
+// Document ID: {deckId}
+// Fields:
+//   - title: string (required)
+//   - description: string (optional)
+//   - mastery: number (optional)
+//   - createdAt: string (required)
+//   - authorId: string (required)
+//
+// Collection: users/{userId}/decks/{deckId}/cards
+// Document ID: {cardId}
+// Fields:
+//   - wax: string (required)
+//   - gold: string (required)
+//   - mastery: number (optional)
+//   - interval: number (optional)
+//   - repetition: number (optional)
+//   - efactor: number (optional)
+//   - nextReviewDate: string (optional)
+//   - lastReviewed: string (optional)
+//   - authorId: string (required)
+//
+// Collection: users/{userId}/studyLogs
+// Document ID: {logId}
+// Fields:
+//   - date: string (required)
+//   - cardsReviewed: number (optional)
+//   - xpEarned: number (optional)
+//   - forgotCount: number (optional)
+//   - doubtfulCount: number (optional)
+//   - knewCount: number (optional)
+//   - authorId: string (required)
+//
+// Collection: rooms
+// Document ID: {roomId}
+// Fields:
+//   - name: string (required)
+//   - description: string (optional)
+//   - tags: list (optional)
+//   - createdAt: string (required)
+//   - createdBy: string (required)
+//   - activeUsers: list (optional)
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function hasRequiredFields(fields) {
+      return request.resource.data.keys().hasAll(fields);
+    }
+    
+    function isValidDateString(dateStr) {
+      return dateStr is string &&
+        dateStr.matches("^\\\\d{4}-\\\\d{2}-\\\\d{2}T\\\\d{2}:\\\\d{2}:\\\\d{2}.*Z?$");
+    }
+    
+    function isDocOwner() {
+      return isAuthenticated() && request.auth.uid == resource.data.authorId;
+    }
+    
+    function uidUnchanged() {
+      return !('authorId' in request.resource.data) ||
+        request.resource.data.authorId == request.auth.uid;
+    }
+    
+    function uidNotModified() {
+      return !('authorId' in request.resource.data) ||
+        request.resource.data.authorId == resource.data.authorId;
+    }
+
+    // Domain Validators
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid &&
+             data.email is string && data.email.size() > 0 &&
+             data.createdAt is string && isValidDateString(data.createdAt) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 100)) &&
+             (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 5000)) &&
+             (!('masteryLevel' in data) || (data.masteryLevel is number && data.masteryLevel >= 0 && data.masteryLevel <= 100)) &&
+             (!('leaves' in data) || (data.leaves is number && data.leaves >= 0)) &&
+             (!('xp' in data) || (data.xp is number && data.xp >= 0)) &&
+             (!('level' in data) || (data.level is number && data.level >= 1)) &&
+             (!('streak' in data) || (data.streak is number && data.streak >= 0)) &&
+             (!('lastStudyDate' in data) || (data.lastStudyDate is string && isValidDateString(data.lastStudyDate)));
+    }
+    
+    function isValidDeck(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 100 &&
+             data.authorId is string && data.authorId == request.auth.uid &&
+             data.createdAt is string && isValidDateString(data.createdAt) &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             (!('mastery' in data) || (data.mastery is number && data.mastery >= 0 && data.mastery <= 100));
+    }
+    
+    function isValidCard(data) {
+      return data.wax is string && data.wax.size() > 0 && data.wax.size() <= 1000 &&
+             data.gold is string && data.gold.size() > 0 && data.gold.size() <= 2000 &&
+             data.authorId is string && data.authorId == request.auth.uid &&
+             (!('mastery' in data) || (data.mastery is number && data.mastery >= 0 && data.mastery <= 100)) &&
+             (!('interval' in data) || (data.interval is number && data.interval >= 0)) &&
+             (!('repetition' in data) || (data.repetition is number && data.repetition >= 0)) &&
+             (!('efactor' in data) || (data.efactor is number && data.efactor >= 1.3)) &&
+             (!('nextReviewDate' in data) || (data.nextReviewDate is string && isValidDateString(data.nextReviewDate))) &&
+             (!('lastReviewed' in data) || (data.lastReviewed is string && isValidDateString(data.lastReviewed)));
+    }
+
+    function isValidStudyLog(data) {
+      return data.date is string && data.date.size() == 10 &&
+             data.authorId is string && data.authorId == request.auth.uid &&
+             (!('cardsReviewed' in data) || (data.cardsReviewed is number && data.cardsReviewed >= 0)) &&
+             (!('xpEarned' in data) || (data.xpEarned is number && data.xpEarned >= 0)) &&
+             (!('forgotCount' in data) || (data.forgotCount is number && data.forgotCount >= 0)) &&
+             (!('doubtfulCount' in data) || (data.doubtfulCount is number && data.doubtfulCount >= 0)) &&
+             (!('knewCount' in data) || (data.knewCount is number && data.knewCount >= 0));
+    }
+
+    function isValidRoom(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.createdAt is string && isValidDateString(data.createdAt) &&
+             data.createdBy is string &&
+             (!('description' in data) || (data.description is string && data.description.size() <= 500)) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() <= 10)) &&
+             (!('activeUsers' in data) || data.activeUsers is list);
+    }
+
+    // Rules
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && hasRequiredFields(['uid', 'email', 'createdAt']) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data) && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.uid == resource.data.uid;
+      allow delete: if isOwner(userId);
+      
+      match /decks/{deckId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && hasRequiredFields(['title', 'authorId', 'createdAt']) && isValidDeck(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidDeck(request.resource.data) && uidNotModified() && request.resource.data.createdAt == resource.data.createdAt;
+        allow delete: if isOwner(userId);
+        
+        match /cards/{cardId} {
+          allow read: if isOwner(userId);
+          allow create: if isOwner(userId) && hasRequiredFields(['wax', 'gold', 'authorId']) && isValidCard(request.resource.data) && uidUnchanged();
+          allow update: if isOwner(userId) && isValidCard(request.resource.data) && uidNotModified();
+          allow delete: if isOwner(userId);
+        }
+      }
+      
+      match /studyLogs/{logId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && hasRequiredFields(['date', 'authorId']) && isValidStudyLog(request.resource.data) && uidUnchanged();
+        allow update: if isOwner(userId) && isValidStudyLog(request.resource.data) && uidNotModified() && request.resource.data.date == resource.data.date;
+        allow delete: if isOwner(userId);
+      }
+    }
+    
+    match /rooms/{roomId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && hasRequiredFields(['name', 'createdBy', 'createdAt']) && isValidRoom(request.resource.data) && request.resource.data.createdBy == request.auth.uid;
+      allow update: if isAuthenticated() && isValidRoom(request.resource.data) && request.resource.data.createdAt == resource.data.createdAt && request.resource.data.createdBy == resource.data.createdBy && (request.auth.uid == resource.data.createdBy || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activeUsers']));
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.createdBy;
+    }
+  }
+}

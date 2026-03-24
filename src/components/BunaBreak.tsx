@@ -1,17 +1,22 @@
 import { ArrowLeft, Coffee, Pause, Play, RotateCcw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useEffect, useState } from 'react';
-import { ViewState } from '../types';
+import { ViewState, UserProfile } from '../types';
+import { User } from '../types';
+import { recordStudySession } from '../utils/studyProgress';
 
 interface BunaBreakProps {
   onNavigate: (view: ViewState) => void;
   onThemeChange: (isDark: boolean) => void;
+  user?: User;
+  userProfile?: UserProfile | null;
 }
 
-export default function BunaBreak({ onNavigate, onThemeChange }: BunaBreakProps) {
+export default function BunaBreak({ onNavigate, onThemeChange, user, userProfile }: BunaBreakProps) {
   const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes
   const [isActive, setIsActive] = useState(false);
   const [isBreak, setIsBreak] = useState(false);
+  const [sessionCompleted, setSessionCompleted] = useState(false);
 
   useEffect(() => {
     let interval: number | undefined;
@@ -20,12 +25,23 @@ export default function BunaBreak({ onNavigate, onThemeChange }: BunaBreakProps)
       interval = window.setInterval(() => {
         setTimeLeft((prev) => prev - 1);
       }, 1000);
-    } else if (timeLeft === 0) {
+    } else if (timeLeft === 0 && isActive) {
       if (!isBreak) {
+        // Focus session completed!
         setIsBreak(true);
         setTimeLeft(5 * 60); // 5 min break
         onThemeChange(true); // Switch to dark mode for break
+        setSessionCompleted(true);
+        
+        // Award XP for completing a focus session (e.g., 50 XP)
+        if (user) {
+          recordStudySession(user.uid, 50, 5); // Using quality 5 to count as 'knew' for stats, or maybe just XP
+        }
+        
+        // Hide the completion message after 5 seconds
+        setTimeout(() => setSessionCompleted(false), 5000);
       } else {
+        // Break completed
         setIsBreak(false);
         setTimeLeft(25 * 60);
         onThemeChange(false);
@@ -34,13 +50,10 @@ export default function BunaBreak({ onNavigate, onThemeChange }: BunaBreakProps)
     }
 
     return () => clearInterval(interval);
-  }, [isActive, timeLeft, isBreak, onThemeChange]);
+  }, [isActive, timeLeft, isBreak, onThemeChange, user]);
 
   const toggleTimer = () => {
     setIsActive(!isActive);
-    if (!isActive && !isBreak) {
-      // Optional: change theme when studying starts? No, prompt says "When the break starts, change the theme to dark mode"
-    }
   };
 
   const resetTimer = () => {
@@ -48,6 +61,7 @@ export default function BunaBreak({ onNavigate, onThemeChange }: BunaBreakProps)
     setIsBreak(false);
     setTimeLeft(25 * 60);
     onThemeChange(false);
+    setSessionCompleted(false);
   };
 
   const formatTime = (seconds: number) => {
@@ -61,7 +75,7 @@ export default function BunaBreak({ onNavigate, onThemeChange }: BunaBreakProps)
     : ((25 * 60 - timeLeft) / (25 * 60)) * 100;
 
   return (
-    <div className="flex-1 flex flex-col p-6 md:p-10 h-full overflow-hidden transition-colors duration-1000 bg-tibeb-pattern">
+    <div className="flex-1 flex flex-col p-6 md:p-10 h-full overflow-hidden transition-colors duration-1000 bg-tibeb-pattern relative">
       <header className="flex justify-between items-center mb-8">
         <button 
           onClick={() => {
@@ -73,6 +87,18 @@ export default function BunaBreak({ onNavigate, onThemeChange }: BunaBreakProps)
           <ArrowLeft size={20} /> Back to Dashboard
         </button>
       </header>
+
+      {sessionCompleted && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="absolute top-24 left-1/2 -translate-x-1/2 bg-gold text-coffee px-6 py-3 rounded-full font-bold shadow-lg flex items-center gap-2 z-50"
+        >
+          <Coffee size={20} />
+          Focus Session Complete! +50 XP
+        </motion.div>
+      )}
 
       <div className="flex-1 flex flex-col items-center justify-center max-w-md mx-auto w-full">
         <div className="text-center mb-12">

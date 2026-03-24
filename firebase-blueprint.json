@@ -1,0 +1,115 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "A user profile storing overall progress.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "email": { "type": "string", "format": "email" },
+        "masteryLevel": { "type": "number", "description": "Overall mastery percentage" },
+        "leaves": { "type": "number", "description": "Number of leaves on the Warka tree" },
+        "xp": { "type": "number", "description": "Experience points" },
+        "level": { "type": "number", "description": "Current level" },
+        "streak": { "type": "number", "description": "Current daily streak" },
+        "lastStudyDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email", "createdAt"]
+    },
+    "Deck": {
+      "title": "Deck",
+      "description": "A collection of flashcards.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "mastery": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["title", "authorId", "createdAt"]
+    },
+    "Card": {
+      "title": "Card",
+      "description": "A single Wax & Gold flashcard.",
+      "type": "object",
+      "properties": {
+        "wax": { "type": "string", "description": "The surface fact" },
+        "gold": { "type": "string", "description": "The deeper meaning" },
+        "mastery": { "type": "number", "description": "0-100 mastery level" },
+        "interval": { "type": "number", "description": "SM-2 interval in days" },
+        "repetition": { "type": "number", "description": "SM-2 repetition count" },
+        "efactor": { "type": "number", "description": "SM-2 easiness factor" },
+        "nextReviewDate": { "type": "string", "format": "date-time" },
+        "lastReviewed": { "type": "string", "format": "date-time" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["wax", "gold", "authorId"]
+    },
+    "StudyLog": {
+      "title": "StudyLog",
+      "description": "Daily study statistics.",
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "description": "YYYY-MM-DD" },
+        "cardsReviewed": { "type": "number" },
+        "xpEarned": { "type": "number" },
+        "forgotCount": { "type": "number" },
+        "doubtfulCount": { "type": "number" },
+        "knewCount": { "type": "number" },
+        "authorId": { "type": "string" }
+      },
+      "required": ["date", "authorId"]
+    },
+    "Room": {
+      "title": "Room",
+      "description": "Shared study space.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "description": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "activeUsers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "uid": { "type": "string" },
+              "displayName": { "type": "string" },
+              "photoURL": { "type": "string", "format": "uri" }
+            },
+            "required": ["uid"]
+          }
+        }
+      },
+      "required": ["name", "createdBy", "createdAt"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "users/{userId}/decks/{deckId}": {
+      "schema": "Deck",
+      "description": "User's flashcard decks"
+    },
+    "users/{userId}/decks/{deckId}/cards/{cardId}": {
+      "schema": "Card",
+      "description": "Flashcards within a deck"
+    },
+    "users/{userId}/studyLogs/{logId}": {
+      "schema": "StudyLog",
+      "description": "Daily study logs"
+    },
+    "rooms/{roomId}": {
+      "schema": "Room",
+      "description": "Shared study rooms"
+    }
+  }
+}
