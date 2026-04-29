@@ -1,4 +1,4 @@
-export type ViewState = 'landing' | 'dashboard' | 'study' | 'timer' | 'analytics' | 'rooms' | 'falling-pattern' | 'stacked-panels';
+export type ViewState = 'landing' | 'dashboard' | 'study' | 'timer' | 'analytics' | 'rooms';
 
 export interface User {
   uid: string;

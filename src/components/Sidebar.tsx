@@ -17,8 +17,6 @@ export default function Sidebar({ currentView, onNavigate, user, userProfile, on
     { id: 'timer' as ViewState, label: 'Buna Break', icon: Coffee },
     { id: 'analytics' as ViewState, label: 'Progress', icon: BarChart2 },
     { id: 'rooms' as ViewState, label: 'Study Rooms', icon: Users },
-    { id: 'falling-pattern' as ViewState, label: 'Pattern', icon: TreeDeciduous },
-    { id: 'stacked-panels' as ViewState, label: 'Panels', icon: Sparkles },
   ];
 
   return (

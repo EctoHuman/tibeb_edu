@@ -15,8 +15,6 @@ import TutorChat from './components/TutorChat';
 import VoiceChat from './components/VoiceChat';
 import AnalyticsView from './components/AnalyticsView';
 import StudyRooms from './components/StudyRooms';
-import FallingPatternDemo from './components/FallingPatternDemo';
-import StackedPanelsDemo from './components/StackedPanelsDemo';
 import { ViewState, UserProfile, User } from './types';
 
 export default function App() {
@@ -105,8 +103,6 @@ export default function App() {
     { id: 'timer' as ViewState, label: 'Break', icon: Coffee },
     { id: 'analytics' as ViewState, label: 'Progress', icon: BarChart2 },
     { id: 'rooms' as ViewState, label: 'Rooms', icon: Users },
-    { id: 'falling-pattern' as ViewState, label: 'Pattern', icon: Sparkles },
-    { id: 'stacked-panels' as ViewState, label: 'Panels', icon: Sparkles },
   ];
 
   if (!isAuthReady) {
@@ -134,8 +130,6 @@ export default function App() {
         {currentView === 'timer' && <BunaBreak onNavigate={setCurrentView} onThemeChange={setIsDarkMode} user={user} userProfile={userProfile} />}
         {currentView === 'analytics' && <AnalyticsView userProfile={userProfile} />}
         {currentView === 'rooms' && <StudyRooms userProfile={userProfile} />}
-        {currentView === 'falling-pattern' && <FallingPatternDemo />}
-        {currentView === 'stacked-panels' && <StackedPanelsDemo />}
         
         {/* Floating Chat Buttons */}
         <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-40">
